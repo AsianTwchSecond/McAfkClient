@@ -5,14 +5,12 @@ const fs = require("fs")
 const app = express()
 app.use(express.json())
 
-/* ================= CONFIG ================= */
-
+/* ========== CONFIG ========== */
 const API_KEY = "ApiKey90"
 const SERVER_HOST = "bingungsmp.top"
 const SERVER_COMMAND = "/server ecocpvp"
 const JUMP_INTERVAL = 5000
-
-/* ========================================== */
+/* ============================ */
 
 let bots = {}
 let botState = {}
@@ -30,23 +28,20 @@ function loadAccounts() {
   return JSON.parse(fs.readFileSync("./accounts.json", "utf8"))
 }
 
-/* ---------- API KEY MIDDLEWARE ---------- */
+/* ---------- API KEY ---------- */
 function checkKey(req, res, next) {
   const key = req.query.key || req.headers["x-api-key"]
-  if (key !== API_KEY) {
-    return res.status(403).send("Access Denied")
-  }
+  if (key !== API_KEY) return res.status(403).send("Access Denied")
   next()
 }
 
-/* ---------- BOT LOGIC ---------- */
+/* ---------- BOT ---------- */
 function startBot(acc) {
   if (bots[acc.name]) return
 
   botState[acc.name] = botState[acc.name] || { autoRejoin: true }
   botState[acc.name].status = "CONNECTING"
-
-  log(`Starting bot ${acc.name}`)
+  log(`Starting ${acc.name}`)
 
   const bot = mineflayer.createBot({
     host: SERVER_HOST,
@@ -57,9 +52,8 @@ function startBot(acc) {
   bots[acc.name] = bot
 
   bot.once("spawn", () => {
-    log(`${acc.name} spawned`)
     botState[acc.name].status = "ONLINE"
-
+    log(`${acc.name} spawned`)
     setTimeout(() => bot.chat(acc.loginCommand), 3000)
     setTimeout(() => bot.chat(SERVER_COMMAND), 6000)
 
@@ -78,7 +72,7 @@ function startBot(acc) {
     botState[acc.name].status = "OFFLINE"
 
     if (botState[acc.name].autoRejoin) {
-      log(`${acc.name} auto-rejoining in 10s`)
+      log(`${acc.name} rejoining in 10s`)
       setTimeout(() => startBot(acc), 10000)
     }
   })
@@ -97,16 +91,16 @@ function stopBot(name) {
 
 /* ---------- WEBSITE ---------- */
 app.get("/", (req, res) => {
-  res.send(`<!DOCTYPE html>
+res.send(`<!DOCTYPE html>
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AFK Control</title>
 <style>
 :root{
-  --bg:#070b16;--card:rgba(255,255,255,.08);
-  --accent:#7c7cff;--accent2:#00ffd5;
-  --danger:#ff4d6d;--ok:#2bff88;--text:#eaeaff;
+--bg:#070b16;--card:rgba(255,255,255,.08);
+--accent:#7c7cff;--accent2:#00ffd5;
+--danger:#ff4d6d;--ok:#2bff88;--text:#eaeaff;
 }
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui;background:radial-gradient(1200px 600px at top,#151a30,var(--bg));color:var(--text);overflow:hidden}
@@ -114,10 +108,9 @@ body{margin:0;font-family:system-ui;background:radial-gradient(1200px 600px at t
 .hidden{opacity:0;pointer-events:none;transform:scale(1.1)}
 .card{background:var(--card);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:30px;width:90%;max-width:420px;animation:glow 3s infinite alternate}
 @keyframes glow{from{box-shadow:0 0 30px rgba(124,124,255,.2)}to{box-shadow:0 0 60px rgba(0,255,213,.35)}}
-h1{text-align:center}
 input,button{width:100%;padding:14px;border-radius:14px;border:none;margin-top:12px}
 input{background:#0c1226;color:#fff}
-button{background:linear-gradient(135deg,var(--accent),var(--accent2));font-weight:800;cursor:pointer}
+button{background:linear-gradient(135deg,var(--accent),var(--accent2));font-weight:800}
 .shake{animation:shake .4s;box-shadow:0 0 40px rgba(255,77,109,.8)!important}
 @keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-6px)}100%{transform:translateX(0)}}
 .panel{max-width:1000px;margin:auto;padding:20px}
@@ -133,18 +126,18 @@ button{background:linear-gradient(135deg,var(--accent),var(--accent2));font-weig
 
 <div class="screen" id="login">
   <div class="card" id="loginCard">
-    <h1>🔐 AFK CONTROL</h1>
-    <input id="key" placeholder="API Key">
+    <h2>🔐 AFK CONTROL</h2>
+    <input id="keyInput" placeholder="API Key">
     <button onclick="login()">ACCESS</button>
   </div>
 </div>
 
 <div class="screen hidden" id="panel">
   <div class="panel">
-    <h1>⚡ BOT PANEL</h1>
+    <h2>⚡ BOT PANEL</h2>
     <div id="bots"></div>
     <input id="bot" placeholder="Bot name">
-    <input id="msg" placeholder="Chat or command">
+    <input id="msg" placeholder="Message or command">
     <button onclick="sendChat()">SEND</button>
     <h3>Logs</h3>
     <div id="logs"></div>
@@ -152,40 +145,56 @@ button{background:linear-gradient(135deg,var(--accent),var(--accent2));font-weig
 </div>
 
 <script>
-let KEY=sessionStorage.getItem("key")
-if(KEY) show()
+let KEY = sessionStorage.getItem("key")
+if (KEY) showPanel()
 
 async function login(){
-  const r=await fetch('/status?key='+key.value)
-  if(!r.ok){loginCard.classList.add("shake");setTimeout(()=>loginCard.classList.remove("shake"),400);return}
-  sessionStorage.setItem("key",key.value);KEY=key.value;show()
+  const value = document.getElementById("keyInput").value.trim()
+  const r = await fetch('/status?key=' + value)
+  if (!r.ok){
+    loginCard.classList.add("shake")
+    setTimeout(()=>loginCard.classList.remove("shake"),400)
+    return
+  }
+  sessionStorage.setItem("key", value)
+  KEY = value
+  showPanel()
 }
 
-function show(){login.classList.add("hidden");panel.classList.remove("hidden");update()}
+function showPanel(){
+  login.classList.add("hidden")
+  panel.classList.remove("hidden")
+  update()
+}
 
 async function update(){
-  const s=await fetch('/status?key='+KEY).then(r=>r.json())
+  const s = await fetch('/status?key=' + KEY).then(r=>r.json())
   bots.innerHTML=''
   for(const n in s){
     const st=s[n]
     const c=st.status==="ONLINE"?"online":st.status==="CONNECTING"?"connecting":"offline"
     bots.innerHTML+=\`
-      <div class="bot">
-        <div><b>\${n}</b><br><span class="status \${c}">\${st.status} · AR \${st.autoRejoin?'ON':'OFF'}</span></div>
-        <div>
-          <button onclick="fetch('/join/\${n}?key='+KEY)">JOIN</button>
-          <button onclick="fetch('/leave/\${n}?key='+KEY)">LEAVE</button>
-          <button onclick="fetch('/toggle/\${n}?key='+KEY)">AUTO</button>
-        </div>
-      </div>\`
+    <div class="bot">
+      <div><b>\${n}</b><br><span class="status \${c}">\${st.status} · AR \${st.autoRejoin?'ON':'OFF'}</span></div>
+      <div>
+        <button onclick="fetch('/join/\${n}?key='+KEY)">JOIN</button>
+        <button onclick="fetch('/leave/\${n}?key='+KEY)">LEAVE</button>
+        <button onclick="fetch('/toggle/\${n}?key='+KEY)">AUTO</button>
+      </div>
+    </div>\`
   }
-  logs.textContent=await fetch('/logs?key='+KEY).then(r=>r.text())
-  logs.scrollTop=logs.scrollHeight
+  logs.textContent = await fetch('/logs?key='+KEY).then(r=>r.text())
+  logs.scrollTop = logs.scrollHeight
 }
 
 async function sendChat(){
-  await fetch('/chat?key='+KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bot:bot.value,msg:msg.value})})
+  await fetch('/chat?key='+KEY,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({bot:bot.value,msg:msg.value})
+  })
 }
+
 setInterval(update,1000)
 </script>
 </body>
@@ -194,8 +203,8 @@ setInterval(update,1000)
 
 /* ---------- API ---------- */
 app.get("/join/:name", checkKey, (req,res)=>{
-  const acc=loadAccounts().find(a=>a.name===req.params.name)
-  if(acc) startBot(acc)
+  const acc = loadAccounts().find(a=>a.name===req.params.name)
+  if (acc) startBot(acc)
   res.send("OK")
 })
 
@@ -205,13 +214,13 @@ app.get("/leave/:name", checkKey, (req,res)=>{
 })
 
 app.get("/toggle/:name", checkKey, (req,res)=>{
-  botState[req.params.name].autoRejoin=!botState[req.params.name].autoRejoin
+  botState[req.params.name].autoRejoin = !botState[req.params.name].autoRejoin
   res.send("OK")
 })
 
 app.post("/chat", checkKey, (req,res)=>{
-  const {bot,msg}=req.body
-  if(bots[bot]) bots[bot].chat(msg)
+  const {bot,msg} = req.body
+  if (bots[bot]) bots[bot].chat(msg)
   res.send("OK")
 })
 
@@ -219,5 +228,5 @@ app.get("/logs", checkKey, (req,res)=>res.send(logs.join("\n")))
 app.get("/status", checkKey, (req,res)=>res.json(botState))
 
 /* ---------- START ---------- */
-const PORT=process.env.PORT||3000
-app.listen(PORT,()=>log("Server running on "+PORT))
+const PORT = process.env.PORT || 3000
+app.listen(PORT, ()=>log("Server running on " + PORT))
